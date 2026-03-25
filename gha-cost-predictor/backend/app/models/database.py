@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy import (
-    Column, Integer, String, Float, DateTime, Text, JSON,
+    Column, Integer, BigInteger, String, Float, DateTime, Text, JSON,
     Boolean, ForeignKey,
 )
 from datetime import datetime, timezone
@@ -60,7 +60,7 @@ class Prediction(Base):
     commit_sha = Column(String(64), nullable=True)
     branch = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
-    github_comment_id = Column(Integer, nullable=True)
+    github_comment_id = Column(BigInteger, nullable=True)
 
     user = relationship("User", back_populates="predictions")
 
