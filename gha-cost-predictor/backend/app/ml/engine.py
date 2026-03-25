@@ -74,6 +74,9 @@ class PredictionEngine:
         """Build a single-row DataFrame and call model.predict()."""
         try:
             row = {k: v for k, v in feature_dict.items() if k not in _META_KEYS}
+            # 🔥 FIX: Encode categorical features
+            row["os_label"] = self._encode_os(row.get("os_label"))
+            row["primary_language"] = self._encode_language(row.get("primary_language"))
             df = pd.DataFrame([row], columns=MODEL_FEATURE_NAMES)
             prediction = self.model.predict(df)[0]
             predicted_minutes = max(0.5, float(prediction))
@@ -87,6 +90,32 @@ class PredictionEngine:
         except Exception as e:
             logger.error(f"Model prediction failed: {e}, falling back to heuristic")
             return self._predict_heuristic(feature_dict)
+
+    def _encode_os(self, os_label: Optional[str]) -> int:
+        if not os_label:
+            return 0
+        os_label = os_label.lower()
+        if "ubuntu" in os_label:
+            return 0
+        elif "windows" in os_label:
+            return 1
+        elif "macos" in os_label:
+            return 2
+        return 3  # unknown
+
+
+    def _encode_language(self, lang: Optional[str]) -> int:
+        if not lang:
+            return 0
+        lang = lang.lower()
+        mapping = {
+            "python": 0,
+            "javascript": 1,
+            "typescript": 2,
+            "java": 3,
+            "go": 4,
+        }
+        return mapping.get(lang, 5)
 
     def _predict_heuristic(self, f: Dict[str, Any]) -> Dict[str, Any]:
         """

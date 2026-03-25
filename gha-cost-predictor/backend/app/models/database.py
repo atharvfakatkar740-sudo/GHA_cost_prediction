@@ -27,8 +27,8 @@ class User(Base):
     full_name = Column(String(255), nullable=False)
     hashed_password = Column(String(255), nullable=False)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
                         onupdate=lambda: datetime.now(timezone.utc))
 
     predictions = relationship("Prediction", back_populates="user", lazy="selectin")
@@ -59,7 +59,7 @@ class Prediction(Base):
     trigger_type = Column(String(50), nullable=True, default="manual")
     commit_sha = Column(String(64), nullable=True)
     branch = Column(String(255), nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     github_comment_id = Column(Integer, nullable=True)
 
     user = relationship("User", back_populates="predictions")
@@ -77,7 +77,7 @@ class PricingCache(Base):
     cpu_cores = Column(Integer, nullable=True)
     is_arm = Column(Integer, default=0)
     is_gpu = Column(Integer, default=0)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
 
 async def init_db():
