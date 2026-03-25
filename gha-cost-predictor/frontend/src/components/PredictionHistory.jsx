@@ -147,7 +147,7 @@ export default function PredictionHistory() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-github-dark/50 border-b border-github-border text-gray-500 text-xs uppercase tracking-wider">
+                <tr className="bg-surface-50 dark:bg-surface-900/50 border-b border-surface-200 dark:border-zinc-700 text-zinc-500 text-xs uppercase tracking-wider">
                   <th className="text-left py-3 px-4 font-medium">ID</th>
                   <th className="text-left py-3 px-4 font-medium">
                     Repository
@@ -169,7 +169,7 @@ export default function PredictionHistory() {
                 {items.map((p) => (
                   <tr
                     key={p.id}
-                    className="border-b border-github-border/40 hover:bg-white/[0.02] transition-colors"
+                    className="border-b border-surface-200/60 dark:border-zinc-700/40 hover:bg-surface-50 dark:hover:bg-zinc-800/50 transition-colors"
                   >
                     <td className="py-3 px-4 text-gray-500 font-mono text-xs">
                       #{p.id}
@@ -238,7 +238,7 @@ export default function PredictionHistory() {
 
         {/* ── Pagination ──────────────────────────────────────── */}
         {total > pageSize && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-github-border bg-github-dark/30">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-surface-200 dark:border-zinc-700 bg-surface-50/50 dark:bg-surface-900/30">
             <span className="text-xs text-gray-500">
               Page {page} of {totalPages} ({total} records)
             </span>

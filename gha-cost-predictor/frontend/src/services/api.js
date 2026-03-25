@@ -69,6 +69,39 @@ export async function refreshPricing() {
   return resp.data;
 }
 
+// ─── Auth ─────────────────────────────────────────────────────────
+
+export async function registerUser(email, fullName, password) {
+  const resp = await api.post("/api/auth/register", {
+    email, full_name: fullName, password,
+  });
+  return resp.data;
+}
+
+export async function loginUser(email, password) {
+  const resp = await api.post("/api/auth/login", { email, password });
+  return resp.data;
+}
+
+export async function forgotPassword(email) {
+  const resp = await api.post("/api/auth/forgot-password", { email });
+  return resp.data;
+}
+
+export async function resetPassword(token, newPassword) {
+  const resp = await api.post("/api/auth/reset-password", {
+    token, new_password: newPassword,
+  });
+  return resp.data;
+}
+
+export async function getMyPredictions(page = 1, pageSize = 20) {
+  const resp = await api.get("/api/predictions/me", {
+    params: { page, page_size: pageSize },
+  });
+  return resp.data;
+}
+
 // ─── Health ───────────────────────────────────────────────────────
 
 export async function checkHealth() {

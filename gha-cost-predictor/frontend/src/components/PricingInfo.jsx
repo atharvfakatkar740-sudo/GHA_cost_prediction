@@ -112,7 +112,7 @@ export default function PricingInfo() {
       </div>
 
       {/* OS Filter */}
-      <div className="flex gap-2 p-1 bg-github-dark rounded-lg border border-github-border w-fit">
+      <div className="flex gap-2 p-1 bg-surface-100 dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-zinc-700 w-fit">
         {["all", "linux", "windows", "macos"].map((os) => (
           <button
             key={os}
@@ -211,7 +211,7 @@ function PricingSection({ title, description, runners, osIcons }) {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-github-dark/50 border-y border-github-border text-gray-500 text-xs uppercase tracking-wider">
+            <tr className="bg-surface-50 dark:bg-surface-900/50 border-y border-surface-200 dark:border-zinc-700 text-zinc-500 text-xs uppercase tracking-wider">
               <th className="text-left py-2.5 px-6 font-medium">Runner SKU</th>
               <th className="text-left py-2.5 px-4 font-medium">OS</th>
               <th className="text-center py-2.5 px-4 font-medium">Cores</th>
@@ -229,7 +229,7 @@ function PricingSection({ title, description, runners, osIcons }) {
               .map((r, i) => (
                 <tr
                   key={i}
-                  className="border-b border-github-border/30 hover:bg-white/[0.02] transition-colors"
+                  className="border-b border-surface-200/50 dark:border-zinc-700/30 hover:bg-surface-50 dark:hover:bg-zinc-800/50 transition-colors"
                 >
                   <td className="py-3 px-6 font-mono text-xs text-gray-300">
                     {r.runner_sku}

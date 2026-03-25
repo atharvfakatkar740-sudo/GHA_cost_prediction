@@ -1,19 +1,31 @@
 import os
 import logging
 import numpy as np
+import pandas as pd
 import joblib
 from typing import Optional, Dict, Any
 
-from app.ml.feature_extractor import features_to_array, FEATURE_NAMES
-from app.models.schemas import WorkflowFeatures
-
 logger = logging.getLogger(__name__)
+
+# The 21 features the trained model expects (order matters for non-Pipeline models)
+MODEL_FEATURE_NAMES = [
+    "yaml_line_count", "yaml_depth", "job_count", "total_steps",
+    "avg_steps_per_job", "uses_matrix_strategy", "matrix_dimensions",
+    "matrix_permutations", "fail_fast", "os_label", "timeout_minutes",
+    "unique_actions_used", "is_using_setup_actions", "is_using_docker_actions",
+    "is_using_cache", "env_var_count", "if_condition_count",
+    "needs_dependencies_count", "code_complexity", "primary_language",
+    "has_container",
+]
+
+# Keys in the extract_workflow_features dict that are metadata, not model inputs
+_META_KEYS = {"total_cost_usd", "duration_minutes", "repo_name", "head_sha", "workflow_name"}
 
 
 class PredictionEngine:
     """
-    Loads a pre-trained ML model (XGBoost / RandomForest / etc.)
-    and predicts workflow duration in minutes from extracted features.
+    Loads a pre-trained ML model (sklearn Pipeline / XGBoost / RandomForest)
+    and predicts workflow duration in minutes from 21 extracted features.
     Falls back to a heuristic estimator if no model file is available.
     """
 
@@ -28,7 +40,11 @@ class PredictionEngine:
         if self.model_path and os.path.isfile(self.model_path):
             try:
                 self.model = joblib.load(self.model_path)
-                self.model_name = type(self.model).__name__
+                # Pipeline wraps the real estimator
+                inner = self.model
+                if hasattr(inner, "named_steps"):
+                    inner = list(inner.named_steps.values())[-1]
+                self.model_name = type(inner).__name__
                 logger.info(f"Loaded ML model: {self.model_name} from {self.model_path}")
             except Exception as e:
                 logger.warning(f"Failed to load model from {self.model_path}: {e}")
@@ -43,25 +59,25 @@ class PredictionEngine:
             self.model_path = model_path
         self._load_model()
 
-    def predict_duration(self, features: WorkflowFeatures) -> Dict[str, Any]:
+    def predict_duration(self, feature_dict: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Predict workflow duration in minutes.
+        Predict workflow duration in minutes from the 21-feature dict
+        produced by extract_workflow_features().
         Returns dict with predicted_minutes, model_used, confidence.
         """
-        feature_array = np.array([features_to_array(features)])
-
         if self.model is not None:
-            return self._predict_with_model(feature_array, features)
+            return self._predict_with_model(feature_dict)
         else:
-            return self._predict_heuristic(features)
+            return self._predict_heuristic(feature_dict)
 
-    def _predict_with_model(self, feature_array: np.ndarray, features: WorkflowFeatures) -> Dict[str, Any]:
-        """Use the loaded ML model for prediction."""
+    def _predict_with_model(self, feature_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Build a single-row DataFrame and call model.predict()."""
         try:
-            prediction = self.model.predict(feature_array)[0]
+            row = {k: v for k, v in feature_dict.items() if k not in _META_KEYS}
+            df = pd.DataFrame([row], columns=MODEL_FEATURE_NAMES)
+            prediction = self.model.predict(df)[0]
             predicted_minutes = max(0.5, float(prediction))
-
-            confidence = self._estimate_confidence(features)
+            confidence = self._estimate_confidence(feature_dict)
 
             return {
                 "predicted_minutes": round(predicted_minutes, 2),
@@ -70,48 +86,32 @@ class PredictionEngine:
             }
         except Exception as e:
             logger.error(f"Model prediction failed: {e}, falling back to heuristic")
-            return self._predict_heuristic(features)
+            return self._predict_heuristic(feature_dict)
 
-    def _predict_heuristic(self, features: WorkflowFeatures) -> Dict[str, Any]:
+    def _predict_heuristic(self, f: Dict[str, Any]) -> Dict[str, Any]:
         """
         Heuristic fallback estimator based on workflow structure.
-        Uses empirical averages from GitHub Actions usage data.
         """
-        # Base time per step (empirical avg ~0.4 min/step for simple steps)
-        base_per_step = 0.4
+        os_label = f.get("os_label", "ubuntu-latest")
+        os_mult = 1.4 if "windows" in os_label else (1.6 if "macos" in os_label else 1.0)
 
-        # OS multiplier (Windows/macOS tend to take longer)
-        os_multipliers = {0: 1.0, 1: 1.4, 2: 1.6}
-        os_mult = os_multipliers.get(features.runner_os_encoded, 1.0)
+        step_time = f.get("total_steps", 1) * 0.35 * os_mult
+        step_time += f.get("job_count", 1) * 0.25
+        step_time += 0.6  # startup overhead
 
-        # Step-based estimate
-        step_time = features.total_steps * base_per_step * os_mult
-
-        # Docker overhead
-        if features.has_docker:
-            step_time += 2.0
-
-        # Services overhead
-        if features.has_services:
+        if f.get("is_using_docker_actions"):
+            step_time += 2.2
+        if f.get("has_container"):
             step_time += 1.5
-
-        # Cache typically saves time
-        if features.has_cache:
+        if f.get("is_using_cache"):
             step_time *= 0.85
-
-        # Matrix multiplier (parallel, so take max duration, not sum)
-        if features.has_matrix and features.matrix_combinations > 1:
-            # Assume longest job ≈ 1.2x single job (some variance)
+        if f.get("uses_matrix_strategy") and f.get("matrix_permutations", 0) > 1:
             step_time *= 1.2
+        if f.get("is_using_setup_actions"):
+            step_time += 0.6
 
-        # Setup actions add overhead
-        if features.has_setup_action:
-            step_time += 0.5
-
-        # Complexity adjustment
-        complexity_factor = 1.0 + (features.estimated_complexity / 50.0)
-        step_time *= min(complexity_factor, 2.5)
-
+        complexity = f.get("code_complexity", 0)
+        step_time *= min(1.0 + complexity / 50.0, 2.5)
         predicted = max(1.0, step_time)
 
         return {
@@ -120,26 +120,18 @@ class PredictionEngine:
             "confidence": 0.55,
         }
 
-    def _estimate_confidence(self, features: WorkflowFeatures) -> float:
-        """Estimate prediction confidence based on feature completeness."""
+    def _estimate_confidence(self, f: Dict[str, Any]) -> float:
         confidence = 0.75
-
-        # More steps = more data points = slightly higher confidence
-        if features.total_steps > 3:
+        if f.get("total_steps", 0) > 3:
             confidence += 0.05
-        if features.total_steps > 10:
+        if f.get("total_steps", 0) > 10:
             confidence += 0.05
-
-        # Matrix makes prediction less certain
-        if features.has_matrix:
+        if f.get("uses_matrix_strategy"):
             confidence -= 0.1
-
-        # Docker/services add uncertainty
-        if features.has_docker:
+        if f.get("is_using_docker_actions"):
             confidence -= 0.05
-        if features.has_services:
+        if f.get("has_container"):
             confidence -= 0.05
-
         return max(0.3, min(0.95, confidence))
 
     @property
@@ -152,6 +144,6 @@ class PredictionEngine:
             "model_name": self.model_name,
             "model_loaded": self.is_model_loaded,
             "model_path": self.model_path,
-            "feature_names": FEATURE_NAMES,
-            "feature_count": len(FEATURE_NAMES),
+            "feature_names": MODEL_FEATURE_NAMES,
+            "feature_count": len(MODEL_FEATURE_NAMES),
         }

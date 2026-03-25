@@ -5,9 +5,11 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ml.engine import PredictionEngine
-from app.ml.feature_extractor import extract_features_from_yaml, detect_runner_os, get_runner_label
 from app.services.pricing_service import pricing_service
-from app.services.workflow_parser import parse_workflow, get_jobs, get_job_runner, get_workflow_name
+from app.services.workflow_parser import (
+    parse_workflow, get_jobs, get_job_runner, get_job_steps,
+    get_workflow_name, extract_workflow_features,
+)
 from app.services.github_service import github_service
 from app.models.database import Prediction
 from app.models.schemas import (
@@ -20,11 +22,23 @@ from config import settings
 logger = logging.getLogger(__name__)
 
 
+def _detect_runner_os(os_label: str) -> str:
+    """Map an os_label string to a normalised OS name."""
+    val = os_label.lower()
+    if "ubuntu" in val or "linux" in val:
+        return "linux"
+    if "windows" in val:
+        return "windows"
+    if "macos" in val or "mac" in val:
+        return "macos"
+    return "linux"
+
+
 class PredictionService:
     """
     Orchestrates the full prediction pipeline:
     1. Parse workflow YAML
-    2. Extract features
+    2. Extract 21 features via extract_workflow_features()
     3. Run ML prediction for duration
     4. Compute cost using pricing formula
     5. Persist results and optionally post to PR
@@ -38,6 +52,7 @@ class PredictionService:
         request: WorkflowPredictionRequest,
         session: AsyncSession,
         post_to_pr: bool = False,
+        user_id: Optional[int] = None,
     ) -> PredictionResponse:
         """Run full prediction pipeline from raw YAML."""
         yaml_content = request.workflow_yaml
@@ -46,41 +61,58 @@ class PredictionService:
         workflow = parse_workflow(yaml_content)
         workflow_name = get_workflow_name(workflow) if workflow else "Unknown"
 
-        # Extract features
-        features, job_infos = extract_features_from_yaml(yaml_content)
+        # Extract the 21-feature dict used by the ML model
+        feature_dict = extract_workflow_features(
+            yaml_content,
+            repo_name=request.repo_name,
+            head_sha=request.commit_sha,
+        )
 
         # Get ML prediction for overall duration
-        result = self.engine.predict_duration(features)
+        result = self.engine.predict_duration(feature_dict)
         total_predicted_minutes = result["predicted_minutes"]
         model_used = result["model_used"]
         confidence = result["confidence"]
 
         # ── Per-job cost breakdown ─────────────────────────────────
+        jobs_dict = get_jobs(workflow) if workflow else {}
         job_predictions: List[JobPrediction] = []
         total_cost = 0.0
 
+        job_infos = []
+        for job_name, job_def in jobs_dict.items():
+            if not isinstance(job_def, dict):
+                continue
+            runner_label = get_job_runner(job_def)
+            runner_os = _detect_runner_os(runner_label)
+            steps = get_job_steps(job_def)
+            strategy = job_def.get("strategy", {})
+            has_matrix = isinstance(strategy, dict) and "matrix" in strategy
+            matrix_perms = feature_dict.get("matrix_permutations", 0) if has_matrix else 0
+            job_infos.append({
+                "job_name": job_name,
+                "runner_label": runner_label,
+                "runner_os": runner_os,
+                "step_count": len(steps),
+                "has_matrix": has_matrix,
+                "matrix_permutations": matrix_perms,
+            })
+
         if job_infos:
-            # Distribute total predicted time across jobs proportionally to step count
             total_step_weight = sum(max(j["step_count"], 1) for j in job_infos)
 
             for ji in job_infos:
                 weight = max(ji["step_count"], 1) / total_step_weight
                 job_duration = round(total_predicted_minutes * weight, 2)
-
-                # GitHub rounds up to nearest minute for billing
                 billable_minutes = math.ceil(job_duration)
 
-                runner_label = ji["runner_label"]
-                runner_os = ji["runner_os"]
-
                 per_min_cost = await pricing_service.get_per_minute_cost(
-                    runner_label, runner_os
+                    ji["runner_label"], ji["runner_os"]
                 )
                 job_cost = round(billable_minutes * per_min_cost, 6)
                 total_cost += job_cost
 
-                # Factor in matrix combinations
-                matrix_mult = max(ji.get("matrix_combinations", 0), 1)
+                matrix_mult = max(ji.get("matrix_permutations", 0), 1)
                 if ji["has_matrix"] and matrix_mult > 1:
                     job_cost *= matrix_mult
                     job_duration *= matrix_mult
@@ -88,36 +120,33 @@ class PredictionService:
 
                 job_predictions.append(JobPrediction(
                     job_name=ji["job_name"],
-                    runner_type=runner_label,
-                    runner_os=runner_os,
+                    runner_type=ji["runner_label"],
+                    runner_os=ji["runner_os"],
                     predicted_duration_minutes=round(job_duration, 2),
                     estimated_cost_usd=round(job_cost, 6),
                     step_count=ji["step_count"],
                 ))
         else:
-            # Fallback: single job estimate
             per_min_cost = await pricing_service.get_per_minute_cost(
                 "ubuntu-latest", "linux"
             )
             billable = math.ceil(total_predicted_minutes)
             total_cost = round(billable * per_min_cost, 6)
-
             job_predictions.append(JobPrediction(
                 job_name="default",
                 runner_type="ubuntu-latest",
                 runner_os="linux",
                 predicted_duration_minutes=total_predicted_minutes,
                 estimated_cost_usd=total_cost,
-                step_count=features.total_steps,
+                step_count=feature_dict.get("total_steps", 0),
             ))
 
         total_cost = round(total_cost, 6)
-
-        # Determine dominant runner info
         dominant_runner = job_predictions[0].runner_type if job_predictions else "ubuntu-latest"
         dominant_os = job_predictions[0].runner_os if job_predictions else "linux"
+        num_jobs = feature_dict.get("job_count", len(job_infos))
+        total_steps = feature_dict.get("total_steps", 0)
 
-        # Cost breakdown metadata
         cost_breakdown = {
             "billing_model": "per_minute",
             "rounding": "ceil_to_nearest_minute",
@@ -131,6 +160,7 @@ class PredictionService:
 
         # ── Persist to database ────────────────────────────────────
         db_record = Prediction(
+            user_id=user_id,
             repo_owner=request.repo_owner or "",
             repo_name=request.repo_name or "",
             pr_number=request.pr_number,
@@ -140,9 +170,9 @@ class PredictionService:
             estimated_cost_usd=total_cost,
             runner_type=dominant_runner,
             runner_os=dominant_os,
-            num_jobs=features.num_jobs,
-            total_steps=features.total_steps,
-            features_json=features.model_dump(),
+            num_jobs=num_jobs,
+            total_steps=total_steps,
+            features_json=feature_dict,
             model_used=model_used,
             confidence_score=confidence,
             status="completed",
@@ -196,8 +226,8 @@ class PredictionService:
             confidence_score=confidence,
             runner_type=dominant_runner,
             runner_os=dominant_os,
-            num_jobs=features.num_jobs,
-            total_steps=features.total_steps,
+            num_jobs=num_jobs,
+            total_steps=total_steps,
             created_at=db_record.created_at,
             status="completed",
             trigger_type=request.trigger_type or "manual",

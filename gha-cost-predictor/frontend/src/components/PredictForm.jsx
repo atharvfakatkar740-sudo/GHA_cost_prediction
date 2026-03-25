@@ -140,7 +140,7 @@ export default function PredictForm() {
       </div>
 
       {/* ── Mode Toggle ─────────────────────────────────────────── */}
-      <div className="flex gap-2 p-1 bg-github-dark rounded-lg border border-github-border w-fit">
+      <div className="flex gap-2 p-1 bg-surface-50 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-zinc-700 w-fit">
         <button
           onClick={() => setMode("yaml")}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
@@ -278,7 +278,7 @@ export default function PredictForm() {
             Advanced Options
           </button>
           {showAdvanced && (
-            <div className="mt-4 space-y-4 pt-4 border-t border-github-border">
+            <div className="mt-4 space-y-4 pt-4 border-t border-surface-200 dark:border-zinc-700">
               {mode === "yaml" && (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
@@ -325,7 +325,7 @@ export default function PredictForm() {
                   id="postToPr"
                   checked={postToPr}
                   onChange={(e) => setPostToPr(e.target.checked)}
-                  className="rounded border-github-border bg-github-dark text-brand-600 focus:ring-brand-500"
+                  className="rounded border-surface-300 dark:border-zinc-600 bg-white dark:bg-surface-800 text-brand-600 focus:ring-brand-500"
                 />
                 <label
                   htmlFor="postToPr"
@@ -423,30 +423,30 @@ function PredictionResultCard({ result }) {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-github-dark rounded-lg p-4 border border-github-border">
-          <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+        <div className="bg-surface-50 dark:bg-surface-900 rounded-xl p-4 border border-surface-200 dark:border-zinc-700">
+          <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 text-xs mb-1">
             <Clock size={14} /> Duration
           </div>
-          <div className="text-2xl font-bold text-white">
+          <div className="text-2xl font-bold text-zinc-900 dark:text-white">
             {formatDuration(result.total_predicted_duration_minutes)}
           </div>
         </div>
-        <div className="bg-github-dark rounded-lg p-4 border border-github-border">
-          <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+        <div className="bg-surface-50 dark:bg-surface-900 rounded-xl p-4 border border-surface-200 dark:border-zinc-700">
+          <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 text-xs mb-1">
             <DollarSign size={14} /> Cost
           </div>
-          <div className="text-2xl font-bold text-green-400">
+          <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
             {formatCost(result.total_estimated_cost_usd)}
           </div>
         </div>
-        <div className="bg-github-dark rounded-lg p-4 border border-github-border">
-          <div className="text-gray-400 text-xs mb-1">Model</div>
-          <div className="text-lg font-semibold text-white">
+        <div className="bg-surface-50 dark:bg-surface-900 rounded-xl p-4 border border-surface-200 dark:border-zinc-700">
+          <div className="text-zinc-500 dark:text-zinc-400 text-xs mb-1">Model</div>
+          <div className="text-lg font-semibold text-zinc-900 dark:text-white">
             {result.model_used}
           </div>
         </div>
-        <div className="bg-github-dark rounded-lg p-4 border border-github-border">
-          <div className="text-gray-400 text-xs mb-1">Confidence</div>
+        <div className="bg-surface-50 dark:bg-surface-900 rounded-xl p-4 border border-surface-200 dark:border-zinc-700">
+          <div className="text-zinc-500 dark:text-zinc-400 text-xs mb-1">Confidence</div>
           <div
             className={`text-lg font-semibold ${getConfidenceColor(
               result.confidence_score
@@ -466,7 +466,7 @@ function PredictionResultCard({ result }) {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-github-border text-gray-500">
+                <tr className="border-b border-surface-200 dark:border-zinc-700 text-zinc-500">
                   <th className="text-left py-2.5 pr-4 font-medium">Job</th>
                   <th className="text-left py-2.5 pr-4 font-medium">Runner</th>
                   <th className="text-center py-2.5 pr-4 font-medium">Steps</th>
@@ -478,7 +478,7 @@ function PredictionResultCard({ result }) {
                 {result.jobs.map((job, i) => (
                   <tr
                     key={i}
-                    className="border-b border-github-border/40 hover:bg-white/[0.02]"
+                    className="border-b border-surface-200/60 dark:border-zinc-700/40 hover:bg-surface-50 dark:hover:bg-zinc-800/50"
                   >
                     <td className="py-2.5 pr-4 font-mono text-xs text-gray-300">
                       {job.job_name}
@@ -505,7 +505,7 @@ function PredictionResultCard({ result }) {
 
       {/* Cost Breakdown Info */}
       {result.cost_breakdown && (
-        <div className="text-xs text-gray-500 flex flex-wrap gap-4 pt-2 border-t border-github-border">
+        <div className="text-xs text-gray-500 flex flex-wrap gap-4 pt-2 border-t border-surface-200 dark:border-zinc-700">
           <span>
             Billing: {result.cost_breakdown.billing_model}
           </span>

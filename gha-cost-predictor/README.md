@@ -2,65 +2,53 @@
 
 **ML-powered pre-run cost estimation for GitHub Actions workflows.**
 
-Predict the duration and financial cost of GitHub Actions workflow runs *before* they execute, using trained machine learning models (XGBoost / RandomForest). The system parses workflow YAML, extracts structural features, predicts execution duration, and calculates cost using live GitHub pricing data.
+Predict the duration and financial cost of GitHub Actions workflow runs *before* they execute, using trained machine learning models (XGBoost / RandomForest). The system parses workflow YAML, extracts 21 structural features, predicts execution duration, and calculates cost using live GitHub pricing data.
 
 ---
-
-## Architecture
-
-```
-┌─────────────┐     ┌──────────────────────────────────────────┐
-│   React UI  │────▶│            FastAPI Backend                │
-│  (Frontend) │◀────│                                          │
-└─────────────┘     │  ┌──────────┐  ┌────────────────────┐   │
-                    │  │ Routers  │  │  ML Prediction      │   │
-                    │  │          │  │  Engine              │   │
-                    │  │ /predict │  │  ┌────────────────┐ │   │
-                    │  │ /webhook │──│  │Feature Extractor│ │   │
-                    │  │ /pricing │  │  │XGBoost / RF     │ │   │
-                    │  └──────────┘  │  └────────────────┘ │   │
-                    │                └────────────────────┘   │
-                    │  ┌──────────────┐  ┌──────────────────┐  │
-                    │  │Pricing Svc   │  │ GitHub Service   │  │
-                    │  │(live fetch)  │  │ (PR comments)    │  │
-                    │  └──────────────┘  └──────────────────┘  │
-                    │  ┌──────────────────────────────────────┐│
-                    │  │        SQLite Database               ││
-                    │  └──────────────────────────────────────┘│
-                    └──────────────────────────────────────────┘
-                                      │
-                                      ▼
-                            GitHub Actions API
-```
-
-## Components
-
-| Component | Path | Tech |
-|-----------|------|------|
-| **Frontend** | `frontend/` | React 18, Tailwind CSS, Recharts, Lucide |
-| **Backend** | `backend/` | FastAPI, SQLAlchemy, httpx |
-| **ML Engine** | `backend/app/ml/` | XGBoost, scikit-learn, joblib |
-| **Database** | SQLite | Via SQLAlchemy async |
 
 ## Features
 
 - **Instant YAML Prediction** — Paste workflow YAML or upload `.yml` files for instant cost estimates
 - **Repository Scanning** — Fetch and analyze all workflows from a GitHub repo
 - **Live Pricing** — Fetches runner pricing from GitHub docs; auto-caches with configurable TTL
-- **PR Comments** — Posts beautifully formatted cost predictions as PR comments via webhooks
-- **Prediction History** — Full history with filtering, pagination, and search
+- **PR & Commit Comments** — Posts beautifully formatted cost predictions via webhooks
+- **User Accounts** — Register, login, and password reset via Google SMTP
+- **Per-user History** — All predictions stored in the user's account
+- **Light / Dark Mode** — Switchable theme with solid pastel palette
+- **Webhook Automation** — Auto-predict on push, pull_request, and workflow_run events
 - **Model Hot-reload** — Swap ML models at runtime without restart
-- **Webhook Automation** — Auto-predict on push (workflow file changes), PR open/sync, and workflow_run events
+
+## Tech Stack
+
+| Component | Path | Tech |
+|-----------|------|------|
+| **Frontend** | `frontend/` | React 18, Tailwind CSS, Lucide, react-hot-toast |
+| **Backend** | `backend/` | FastAPI, SQLAlchemy 2.0, httpx, python-jose |
+| **ML Engine** | `backend/app/ml/` | XGBoost, scikit-learn Pipeline, joblib |
+| **Database** | PostgreSQL | Via SQLAlchemy async + asyncpg |
+| **Auth** | JWT + bcrypt | Password reset via Google SMTP (aiosmtplib) |
+
+---
 
 ## Quick Start
 
 ### Prerequisites
 
-- Python 3.10+
-- Node.js 18+
-- npm or yarn
+- **Python 3.10+**
+- **Node.js 18+**
+- **PostgreSQL 14+** (running locally or via Docker)
 
-### 1. Backend Setup
+### 1. PostgreSQL Setup
+
+```bash
+# Option A: If you have PostgreSQL installed locally
+psql -U postgres -c "CREATE DATABASE gha_cost_predictor;"
+
+# Option B: Docker (one-liner)
+docker run -d --name gha-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=gha_cost_predictor -p 5432:5432 postgres:16
+```
+
+### 2. Backend Setup
 
 ```bash
 cd backend
@@ -73,79 +61,98 @@ venv\Scripts\activate        # Windows
 # Install dependencies
 pip install -r requirements.txt
 
+# Configure environment
+cp .env.example .env
+# Edit .env — at minimum set DATABASE_URL, JWT_SECRET_KEY
+# For password reset: set SMTP_USER, SMTP_PASSWORD (see SMTP section below)
+
 # Generate sample ML model (if you don't have your own)
 python ml_models/generate_sample_model.py
 
-# Configure environment
-# Edit .env with your GitHub token (optional, needed for PR comments)
-
-# Run the server
+# Run the server (auto-creates tables on startup)
 python main.py
 ```
 
-The API will be available at `http://localhost:8000`. Docs at `http://localhost:8000/docs`.
+The API will be at `http://localhost:8000`. Interactive docs at `http://localhost:8000/docs`.
 
-### 2. Frontend Setup
+### 3. Frontend Setup
 
 ```bash
 cd frontend
-
-# Install dependencies
 npm install
-
-# Start dev server
 npm start
 ```
 
-The frontend will be available at `http://localhost:3000`.
+The frontend will be at `http://localhost:3000`.
 
-### 3. Using Your Own Trained Model
+### 4. Using Your Own Trained Model
 
-Place your trained model file at `backend/ml_models/model.joblib`. The model must:
-- Accept a feature vector of **20 features** (see feature list below)
-- Have a `.predict()` method (scikit-learn compatible)
+Place your trained model at `backend/ml_models/model.joblib`. The model must:
+- Accept a DataFrame with **21 feature columns** (see below)
+- Have a `.predict()` method (scikit-learn Pipeline or raw estimator)
 - Be saved via `joblib.dump()`
 
-The system will auto-detect the model type (XGBoost, RandomForest, etc.).
+The engine auto-detects Pipeline vs raw model and extracts the inner estimator name.
 
-## Feature Vector (20 features)
+### 5. Google SMTP Setup (Password Reset)
 
-| # | Feature | Description |
-|---|---------|-------------|
-| 1 | `num_jobs` | Number of jobs in the workflow |
-| 2 | `total_steps` | Total steps across all jobs |
-| 3 | `runner_os_encoded` | 0=Linux, 1=Windows, 2=macOS |
-| 4 | `has_matrix` | Whether matrix strategy is used |
-| 5 | `matrix_combinations` | Number of matrix combinations |
-| 6 | `has_cache` | Whether caching is used |
-| 7 | `has_artifacts` | Whether artifacts are used |
-| 8 | `num_env_vars` | Number of environment variables |
-| 9 | `has_services` | Whether service containers are used |
-| 10 | `has_timeout` | Whether timeout-minutes is set |
-| 11 | `num_uses_actions` | Number of `uses:` actions |
-| 12 | `num_run_commands` | Number of `run:` commands |
-| 13 | `has_conditional` | Whether `if:` conditions are used |
-| 14 | `trigger_count` | Number of trigger events |
-| 15 | `has_checkout` | Whether actions/checkout is used |
-| 16 | `has_setup_action` | Whether setup-* actions are used |
-| 17 | `has_docker` | Whether Docker is used |
-| 18 | `estimated_complexity` | Derived complexity score |
-| 19 | `max_parallel_jobs` | Max parallel job count |
-| 20 | `has_needs_dependency` | Whether job dependencies exist |
+1. **Enable 2-Step Verification** on your Google Account
+2. Go to [App Passwords](https://myaccount.google.com/apppasswords)
+3. Generate a password for "Mail" → "Other (Custom name)" → "GHA Cost Predictor"
+4. Copy the 16-character app password
+5. Set in `.env`:
+   ```env
+   SMTP_USER=your_email@gmail.com
+   SMTP_PASSWORD=abcd efgh ijkl mnop    # the 16-char app password
+   SMTP_FROM_EMAIL=your_email@gmail.com
+   ```
+
+---
+
+## Feature Vector (21 features)
+
+| # | Feature | Type | Description |
+|---|---------|------|-------------|
+| 1 | `yaml_line_count` | int | Total lines in the workflow YAML |
+| 2 | `yaml_depth` | int | Max nesting depth of the YAML |
+| 3 | `job_count` | int | Number of jobs |
+| 4 | `total_steps` | int | Total steps across all jobs |
+| 5 | `avg_steps_per_job` | float | Average steps per job |
+| 6 | `uses_matrix_strategy` | int | 0/1 — matrix strategy used |
+| 7 | `matrix_dimensions` | int | Number of matrix dimensions |
+| 8 | `matrix_permutations` | int | Total matrix combinations |
+| 9 | `fail_fast` | int | 0/1 — fail-fast enabled |
+| 10 | `os_label` | str | Runner label (e.g. `ubuntu-latest`) |
+| 11 | `timeout_minutes` | int | Max timeout-minutes across jobs |
+| 12 | `unique_actions_used` | int | Count of distinct actions used |
+| 13 | `is_using_setup_actions` | int | 0/1 — setup-* actions present |
+| 14 | `is_using_docker_actions` | int | 0/1 — Docker used |
+| 15 | `is_using_cache` | int | 0/1 — caching actions present |
+| 16 | `env_var_count` | int | Total environment variables |
+| 17 | `if_condition_count` | int | Total `if:` conditions |
+| 18 | `needs_dependencies_count` | int | Total `needs:` dependencies |
+| 19 | `code_complexity` | float | Weighted complexity score |
+| 20 | `primary_language` | str | Primary repo language |
+| 21 | `has_container` | int | 0/1 — job uses a container |
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/predictions/predict` | Predict from raw YAML |
-| `POST` | `/api/predictions/predict-repo` | Predict all workflows in a repo |
-| `GET` | `/api/predictions/history` | Paginated prediction history |
-| `GET` | `/api/predictions/{id}` | Get single prediction |
-| `GET` | `/api/predictions/model/info` | ML model information |
-| `POST` | `/api/predictions/model/reload` | Hot-reload model |
-| `GET` | `/api/pricing/` | Current runner pricing |
-| `POST` | `/api/pricing/refresh` | Force-refresh pricing |
-| `POST` | `/api/webhooks/github` | GitHub webhook handler |
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `POST` | `/api/auth/register` | — | Create a new account |
+| `POST` | `/api/auth/login` | — | Get JWT access token |
+| `POST` | `/api/auth/forgot-password` | — | Send reset email |
+| `POST` | `/api/auth/reset-password` | — | Reset with token |
+| `POST` | `/api/predictions/predict` | Optional | Predict from raw YAML |
+| `POST` | `/api/predictions/predict-repo` | Optional | Predict all repo workflows |
+| `GET` | `/api/predictions/me` | Required | User's own predictions |
+| `GET` | `/api/predictions/history` | — | All predictions (paginated) |
+| `GET` | `/api/predictions/{id}` | — | Single prediction |
+| `GET` | `/api/predictions/model/info` | — | ML model info |
+| `POST` | `/api/predictions/model/reload` | — | Hot-reload model |
+| `GET` | `/api/pricing/` | — | Current runner pricing |
+| `POST` | `/api/pricing/refresh` | — | Force-refresh pricing |
+| `POST` | `/api/webhooks/github` | — | GitHub webhook handler |
 
 ## Cost Calculation
 

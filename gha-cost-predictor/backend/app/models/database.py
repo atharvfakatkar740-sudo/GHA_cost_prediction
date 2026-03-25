@@ -1,6 +1,9 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, JSON
+from sqlalchemy.orm import DeclarativeBase, relationship
+from sqlalchemy import (
+    Column, Integer, String, Float, DateTime, Text, JSON,
+    Boolean, ForeignKey,
+)
 from datetime import datetime, timezone
 
 from config import settings
@@ -14,10 +17,30 @@ class Base(DeclarativeBase):
     pass
 
 
+# ─── User ───────────────────────────────────────────────────────────
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(320), unique=True, nullable=False, index=True)
+    full_name = Column(String(255), nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc))
+
+    predictions = relationship("Prediction", back_populates="user", lazy="selectin")
+
+
+# ─── Prediction ─────────────────────────────────────────────────────
+
 class Prediction(Base):
     __tablename__ = "predictions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     repo_owner = Column(String(255), nullable=False)
     repo_name = Column(String(255), nullable=False)
     pr_number = Column(Integer, nullable=True)
@@ -39,6 +62,10 @@ class Prediction(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     github_comment_id = Column(Integer, nullable=True)
 
+    user = relationship("User", back_populates="predictions")
+
+
+# ─── Pricing Cache ──────────────────────────────────────────────────
 
 class PricingCache(Base):
     __tablename__ = "pricing_cache"

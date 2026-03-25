@@ -53,11 +53,11 @@ export default function Dashboard() {
     <div className="space-y-8 fade-in">
       {/* ── Hero ──────────────────────────────────────────────── */}
       <section className="text-center py-8">
-        <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight">
+        <h1 className="text-4xl sm:text-5xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
           Predict CI/CD Costs{" "}
-          <span className="text-brand-400">Before They Run</span>
+          <span className="text-brand-600 dark:text-brand-400">Before They Run</span>
         </h1>
-        <p className="mt-4 text-lg text-gray-400 max-w-2xl mx-auto">
+        <p className="mt-4 text-lg text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto">
           ML-powered pre-run cost estimation for GitHub Actions workflows.
           Paste your YAML, get instant duration &amp; cost predictions.
         </p>
@@ -111,17 +111,17 @@ export default function Dashboard() {
       {/* ── Feature Highlights ────────────────────────────────── */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <FeatureCard
-          icon={<Zap className="text-brand-400" size={28} />}
+          icon={<Zap className="text-brand-600 dark:text-brand-400" size={28} />}
           title="Instant Predictions"
           desc="Get cost estimates in milliseconds by analyzing workflow YAML structure with trained ML models."
         />
         <FeatureCard
-          icon={<TrendingUp className="text-green-400" size={28} />}
+          icon={<TrendingUp className="text-emerald-600 dark:text-emerald-400" size={28} />}
           title="Live Pricing"
           desc="Pricing data is fetched directly from GitHub docs to reflect any billing changes automatically."
         />
         <FeatureCard
-          icon={<Shield className="text-amber-400" size={28} />}
+          icon={<Shield className="text-amber-600 dark:text-amber-400" size={28} />}
           title="PR Integration"
           desc="Automatic cost prediction comments on pull requests via GitHub webhooks for full team visibility."
         />
@@ -131,12 +131,12 @@ export default function Dashboard() {
       {recentPredictions.length > 0 && (
         <section className="card">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
               Recent Predictions
             </h2>
             <Link
               to="/history"
-              className="text-sm text-brand-400 hover:text-brand-300 flex items-center gap-1"
+              className="text-sm text-brand-600 dark:text-brand-400 hover:text-brand-500 dark:hover:text-brand-300 flex items-center gap-1"
             >
               View all <ArrowRight size={14} />
             </Link>
@@ -144,7 +144,7 @@ export default function Dashboard() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-github-border text-gray-500">
+                <tr className="border-b border-surface-200 dark:border-zinc-700 text-zinc-500">
                   <th className="text-left py-3 pr-4 font-medium">Repository</th>
                   <th className="text-left py-3 pr-4 font-medium">Workflow</th>
                   <th className="text-right py-3 pr-4 font-medium">Duration</th>
@@ -156,21 +156,21 @@ export default function Dashboard() {
                 {recentPredictions.map((p) => (
                   <tr
                     key={p.id}
-                    className="border-b border-github-border/50 hover:bg-white/[0.02] transition-colors"
+                    className="border-b border-surface-200 dark:border-zinc-700/50 hover:bg-surface-50 dark:hover:bg-zinc-800/50 transition-colors"
                   >
-                    <td className="py-3 pr-4 font-mono text-xs text-gray-300">
+                    <td className="py-3 pr-4 font-mono text-xs text-zinc-600 dark:text-zinc-300">
                       {p.repo_owner}/{p.repo_name}
                     </td>
-                    <td className="py-3 pr-4 text-gray-400">
+                    <td className="py-3 pr-4 text-zinc-500 dark:text-zinc-400">
                       {p.workflow_file || "—"}
                     </td>
-                    <td className="py-3 pr-4 text-right text-white font-medium">
+                    <td className="py-3 pr-4 text-right text-zinc-900 dark:text-white font-medium">
                       {formatDuration(p.predicted_duration_minutes)}
                     </td>
-                    <td className="py-3 pr-4 text-right text-green-400 font-medium">
+                    <td className="py-3 pr-4 text-right text-emerald-600 dark:text-emerald-400 font-medium">
                       {formatCost(p.estimated_cost_usd)}
                     </td>
-                    <td className="py-3 text-right text-gray-500 text-xs">
+                    <td className="py-3 text-right text-zinc-400 dark:text-zinc-500 text-xs">
                       {formatDate(p.created_at)}
                     </td>
                   </tr>
@@ -185,29 +185,27 @@ export default function Dashboard() {
 }
 
 function StatCard({ icon: Icon, label, value, color, subtitle }) {
-  const colors = {
-    brand: "from-brand-600/20 to-brand-600/5 border-brand-600/30",
-    blue: "from-blue-600/20 to-blue-600/5 border-blue-600/30",
-    green: "from-green-600/20 to-green-600/5 border-green-600/30",
-    amber: "from-amber-600/20 to-amber-600/5 border-amber-600/30",
+  const bg = {
+    brand: "bg-brand-50 border-brand-200 dark:bg-brand-900/20 dark:border-brand-800/40",
+    blue: "bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/40",
+    green: "bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/40",
+    amber: "bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/40",
   };
   const iconColors = {
-    brand: "text-brand-400",
-    blue: "text-blue-400",
-    green: "text-green-400",
-    amber: "text-amber-400",
+    brand: "text-brand-600 dark:text-brand-400",
+    blue: "text-blue-600 dark:text-blue-400",
+    green: "text-emerald-600 dark:text-emerald-400",
+    amber: "text-amber-600 dark:text-amber-400",
   };
   return (
-    <div
-      className={`rounded-xl border p-5 bg-gradient-to-br ${colors[color]} transition-transform hover:scale-[1.02]`}
-    >
+    <div className={`rounded-2xl border p-5 ${bg[color]} transition-transform hover:scale-[1.02]`}>
       <div className="flex items-center gap-3 mb-3">
         <Icon size={20} className={iconColors[color]} />
         <span className="stat-label">{label}</span>
       </div>
-      <div className="stat-value text-white">{value}</div>
+      <div className="stat-value text-zinc-900 dark:text-white">{value}</div>
       {subtitle && (
-        <div className="text-xs text-gray-500 mt-1">{subtitle}</div>
+        <div className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">{subtitle}</div>
       )}
     </div>
   );
@@ -215,10 +213,10 @@ function StatCard({ icon: Icon, label, value, color, subtitle }) {
 
 function FeatureCard({ icon, title, desc }) {
   return (
-    <div className="card hover:border-brand-600/40 transition-colors">
+    <div className="card hover:border-brand-300 dark:hover:border-brand-700/60 transition-colors">
       <div className="mb-4">{icon}</div>
-      <h3 className="text-white font-semibold mb-2">{title}</h3>
-      <p className="text-sm text-gray-400 leading-relaxed">{desc}</p>
+      <h3 className="text-zinc-900 dark:text-white font-semibold mb-2">{title}</h3>
+      <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">{desc}</p>
     </div>
   );
 }

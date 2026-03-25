@@ -179,22 +179,9 @@ def extract_workflow_features(
             timeout_minutes = tm_i if timeout_minutes is None else max(timeout_minutes, tm_i)
 
         # Container
-        container_image = False
-        container = jdef.get("container")
-        if container:
-            if isinstance(container, str):
-                container_image = container
-            elif isinstance(container, dict):
-                container_image = container.get("image", True)
-            else:
-                container_image = True
-
         job_container = job_def.get("container")
-        if not container_image and job_container:
-            if isinstance(job_container, str):
-                container_image = job_container
-            elif isinstance(job_container, dict) and job_container.get("image"):
-                container_image = str(job_container.get("image"))
+        if job_container:
+            has_container = 1
 
         strategy = job_def.get("strategy")
         matrix_info = _extract_matrix_info(strategy)
@@ -279,7 +266,7 @@ def extract_workflow_features(
         "needs_dependencies_count": int(needs_dependencies_count),
         "code_complexity": float(round(code_complexity, 4)),
         "primary_language": primary_language or "",
-        "has_container": job_container
+        "has_container": int(has_container),
     }
 
 
