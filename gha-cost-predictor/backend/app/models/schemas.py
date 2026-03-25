@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -35,6 +35,7 @@ class JobPrediction(BaseModel):
 
 
 class PredictionResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     id: Optional[int] = None
     repo_owner: Optional[str] = None
     repo_name: Optional[str] = None
@@ -58,6 +59,7 @@ class PredictionResponse(BaseModel):
 
 
 class PredictionHistoryItem(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     id: int
     repo_owner: str
     repo_name: str
@@ -75,8 +77,7 @@ class PredictionHistoryItem(BaseModel):
     branch: Optional[str] = None
     created_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
 
 
 class PredictionHistoryResponse(BaseModel):
