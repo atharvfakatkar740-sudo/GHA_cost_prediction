@@ -1,0 +1,26 @@
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#ffffff', 'primaryBorderColor': '#7BAFD4', 'primaryTextColor': '#1a1a2e', 'fontSize': '28px', 'fontFamily': 'Segoe UI, sans-serif', 'ganttTaskFontSize': '26px', 'ganttSectionFontSize': '30px', 'ganttScaleFontSize': '22px', 'gridColor': '#e2e8f0', 'sectionBkgColor': '#f8fafc', 'altSectionBkgColor': '#f1f5f9', 'taskBkgColor': '#D0E8FF', 'taskTextColor': '#1a1a2e', 'taskTextLightColor': '#475569', 'taskTextOutsideColor': '#1a1a2e', 'activeTaskBkgColor': '#60a5fa', 'activeTaskBorderColor': '#3b82f6', 'section0': '#60a5fa', 'section1': '#34d399', 'section2': '#fbbf24', 'section3': '#a78bfa'}, 'gantt': {'barHeight': 50, 'barGap': 15, 'topPadding': 80, 'leftPadding': 180, 'gridLineStartPadding': 40, 'fontSize': 26, 'numberSectionStyles': 4, 'tickInterval': 7, 'axisPlacement': 'top'}}}%%
+
+gantt
+    title GHA Cost Predictor - 17 Week Project Timeline
+    dateFormat YYYY-MM-DD
+    axisFormat Week %W
+
+    section Planning
+    Requirements & Design       :req, 2026-01-01, 14d
+    Requirements Complete       :milestone, m1, after req, 0d
+
+    section Development
+    Backend Development         :back, 2026-01-15, 42d
+    Backend Complete            :milestone, m2, after back, 0d
+
+    Frontend Development        :front, 2026-02-12, 28d
+    Frontend Complete           :milestone, m3, after front, 0d
+
+    section Quality
+    Integration & Testing       :test, 2026-03-11, 21d
+    Testing Complete            :milestone, m4, after test, 0d
+
+    section Release
+    Deployment & Documentation  :deploy, 2026-04-01, 28d
+    Production Deploy           :milestone, m5, 2026-04-15, 0d
+    Project Complete            :milestone, m6, 2026-04-29, 0d

@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+.env
+*.db
+.git/
+.gitignore
+*.joblib
+ml_models/*.joblib

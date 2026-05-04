@@ -1,0 +1,113 @@
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#D0E8FF', 'primaryBorderColor': '#7BAFD4', 'primaryTextColor': '#1a1a2e', 'fontSize': '25px', 'fontFamily': 'Segoe UI, sans-serif'}}}%%
+
+classDiagram
+    direction TB
+
+    class User {
+        +int id
+        +String email
+        +String full_name
+        +bool is_active
+        +DateTime created_at
+    }
+
+    class Prediction {
+        +int id
+        +int user_id
+        +String repo_name
+        +float predicted_duration_minutes
+        +float estimated_cost_usd
+        +String runner_type
+        +String model_used
+        +String status
+        +DateTime created_at
+    }
+
+    class PricingCache {
+        +int id
+        +String runner_sku
+        +float per_minute_cost_usd
+        +String os_type
+        +DateTime updated_at
+    }
+
+    class PredictionEngine {
+        -model model
+        -String model_name
+        +predict_duration(Dict) Dict
+        +reload_model(String) void
+        +bool is_model_loaded
+    }
+
+    class PredictionService {
+        -PredictionEngine engine
+        +predict_from_yaml(Request, Session) PredictionResponse
+        +predict_repo_workflows(String, String, Session) List
+    }
+
+    class GitHubService {
+        -String token
+        +get_workflow_files(String, String) List
+        +get_file_content(String, String, String) String
+        +post_pr_comment(String, String, int, String) int
+        +get_repo_metadata(String, String) Dict
+        +format_prediction_comment(...) String
+    }
+
+    class PricingService {
+        -Dict _cache
+        -int _ttl
+        +get_per_minute_cost(String, String) float
+        +get_all_pricing() Dict
+        +persist_to_db(Session) void
+    }
+
+    class WebhookHandler {
+        -PredictionService _service
+        +github_webhook(Request, Session) Dict
+        -_handle_push(dict, Session) Dict
+        -_handle_pull_request(dict, Session) Dict
+        -_handle_workflow_run(dict, Session) Dict
+    }
+
+    class DatabaseManager {
+        -AsyncEngine engine
+        +init_db() void
+        +get_session() AsyncSession
+    }
+
+    class WorkflowParser {
+        +parse_workflow(String) Dict
+        +get_jobs(Dict) Dict
+        +extract_workflow_features(String) Dict
+    }
+
+    User "1" --o "0..*" Prediction : owns
+
+    PredictionService *-- PredictionEngine : contains
+    PredictionService ..> GitHubService : uses
+    PredictionService ..> PricingService : uses
+    PredictionService ..> Prediction : creates
+    PredictionService ..> WorkflowParser : calls
+
+    WebhookHandler *-- PredictionService : contains
+    WebhookHandler ..> GitHubService : uses
+
+    PricingService ..> PricingCache : persists
+
+    DatabaseManager *-- User : manages
+    DatabaseManager *-- Prediction : manages
+    DatabaseManager *-- PricingCache : manages
+
+    PredictionEngine ..> WorkflowParser : consumes features
+
+    style User fill:#D0E8FF,stroke:#7BAFD4,color:#1a1a2e
+    style Prediction fill:#D0E8FF,stroke:#7BAFD4,color:#1a1a2e
+    style PricingCache fill:#D0E8FF,stroke:#7BAFD4,color:#1a1a2e
+    style PredictionEngine fill:#FDE8C8,stroke:#E8A96A,color:#1a1a2e
+    style PredictionService fill:#D4F1E4,stroke:#6DBF9E,color:#1a1a2e
+    style GitHubService fill:#D4F1E4,stroke:#6DBF9E,color:#1a1a2e
+    style PricingService fill:#D4F1E4,stroke:#6DBF9E,color:#1a1a2e
+    style WebhookHandler fill:#EDE8FF,stroke:#9C8FD4,color:#1a1a2e
+    style DatabaseManager fill:#EDE8FF,stroke:#9C8FD4,color:#1a1a2e
+    style WorkflowParser fill:#FDE8C8,stroke:#E8A96A,color:#1a1a2e

@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gha-config
+  namespace: gha-cost-predictor
+data:
+  # Database
+  POSTGRES_DB: gha_cost_predictor
+  POSTGRES_USER: postgres
+
+  # Backend non-secret settings
+  HOST: "0.0.0.0"
+  PORT: "8000"
+  JWT_ALGORITHM: HS256
+  JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "1440"
+  JWT_RESET_TOKEN_EXPIRE_MINUTES: "30"
+  CORS_ORIGINS: "http://localhost:3000,http://frontend-svc"
+  MODEL_PATH: /app/ml_models/model.joblib
+  PRICING_CACHE_TTL: "3600"
+  SMTP_HOST: smtp.gmail.com
+  SMTP_PORT: "587"
+  SMTP_FROM_NAME: GHA Cost Predictor

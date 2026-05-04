@@ -109,6 +109,120 @@ The engine auto-detects Pipeline vs raw model and extracts the inner estimator n
 
 ---
 
+## Docker Deployment (recommended)
+
+### Prerequisites
+- Docker + Docker Compose
+
+### 1. Configure environment
+
+```bash
+# Copy and fill in secrets (at minimum GITHUB_TOKEN and JWT_SECRET_KEY)
+cp backend/.env.example .env
+```
+
+Only these variables need to be set in a root-level `.env` file — everything else has safe defaults:
+
+```env
+GITHUB_TOKEN=ghp_...
+GITHUB_WEBHOOK_SECRET=your-secret
+JWT_SECRET_KEY=a-long-random-string
+POSTGRES_PASSWORD=postgres          # optional override
+SMTP_USER=your@gmail.com            # optional, for password-reset emails
+SMTP_PASSWORD=app-password
+SMTP_FROM_EMAIL=your@gmail.com
+REACT_APP_API_URL=http://localhost:8000   # URL the browser uses to call the API
+```
+
+### 2. (Optional) Generate a sample ML model
+
+```bash
+docker compose run --rm backend python ml_models/generate_sample_model.py
+```
+
+Or place your own trained `model.joblib` in `backend/ml_models/`.
+
+### 3. Start everything
+
+```bash
+docker compose up --build
+```
+
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:3000 |
+| Backend API | http://localhost:8000 |
+| API Docs | http://localhost:8000/docs |
+
+Stop with `Ctrl+C` then `docker compose down`. Add `-v` to also delete the database volume.
+
+---
+
+## Kubernetes Deployment
+
+### Prerequisites
+- `docker` — to build images
+- `kubectl` — configured to point at your cluster
+- An **Ingress controller** in the cluster (e.g. ingress-nginx)
+
+For local development with **minikube**:
+```bash
+minikube start
+minikube addons enable ingress
+```
+
+### 1. Edit secrets
+
+Open `k8s/02-secrets.yaml` and replace the `base64` placeholders with real values:
+```bash
+echo -n 'your-value' | base64
+```
+
+> **Never** commit real secrets. Use [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets) or an external secret manager in production.
+
+### 2. Deploy with one command
+
+```bash
+chmod +x k8s/deploy.sh
+./k8s/deploy.sh
+```
+
+Options:
+```bash
+./k8s/deploy.sh --tag v1.2.3      # tag images with a specific version
+./k8s/deploy.sh --skip-build      # skip docker build (use existing images)
+```
+
+The script:
+1. Detects minikube and uses its Docker daemon automatically
+2. Builds `gha-cost-predictor/backend:latest` and `gha-cost-predictor/frontend:latest`
+3. Applies all manifests in `k8s/` in dependency order
+4. Waits for all rollouts to complete
+
+### 3. Access the application
+
+**Via Ingress** — add `127.0.0.1  gha.local` to your `/etc/hosts`, then open `http://gha.local`.
+
+**Via port-forward** (no DNS change needed):
+```bash
+kubectl port-forward svc/frontend-svc 3000:80  -n gha-cost-predictor
+kubectl port-forward svc/backend-svc  8000:8000 -n gha-cost-predictor
+```
+
+### Kubernetes manifest overview
+
+| File | Resource(s) |
+|------|-------------|
+| `k8s/00-namespace.yaml` | `Namespace: gha-cost-predictor` |
+| `k8s/01-configmap.yaml` | Non-secret environment variables |
+| `k8s/02-secrets.yaml` | Passwords, tokens, JWT key |
+| `k8s/03-postgres.yaml` | Postgres PVC + Deployment + headless Service |
+| `k8s/04-backend.yaml` | Backend PVC + Deployment (2 replicas) + ClusterIP Service |
+| `k8s/05-frontend.yaml` | Frontend Deployment (2 replicas) + ClusterIP Service |
+| `k8s/06-ingress.yaml` | nginx Ingress routing `/api` → backend, `/` → frontend |
+
+---
+
 ## Feature Vector (21 features)
 
 | # | Feature | Type | Description |

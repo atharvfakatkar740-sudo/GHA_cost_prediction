@@ -1,0 +1,44 @@
+# Requires an Ingress controller (e.g. ingress-nginx).
+# Local: kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.2/deploy/static/provider/cloud/deploy.yaml
+# Or for kind/minikube: minikube addons enable ingress
+#
+# Routes:
+#   /api/*  → backend-svc:8000
+#   /       → frontend-svc:80
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gha-ingress
+  namespace: gha-cost-predictor
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: gha.local       # Change to your real domain or use localhost
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-svc
+                port:
+                  number: 8000
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: backend-svc
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-svc
+                port:
+                  number: 80

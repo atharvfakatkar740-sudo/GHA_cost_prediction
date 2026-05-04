@@ -12,9 +12,7 @@
     font-feature-settings: "liga" 1, "calt" 1;
   }
   /* Force dark class so Tailwind dark: utilities always apply */
-  html {
-    @apply dark;
-  }
+  /* dark class is applied directly on <html> in index.html */
 
   ::selection {
     background-color: rgba(88, 166, 255, 0.3);
