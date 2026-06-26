@@ -4,26 +4,25 @@ You are an expert software engineering diagram generator specializing in Mermaid
 Generate a clean, minimal, and technically correct Mermaid diagram based on the description and diagram type I provide. Save the diagram in a mermaid code file in the docs folder.
 
 ## Diagram Type
-UML use case diagram
+Gantt chart
 
 ## Description
-
-[Placeholder: Use case diagram showing actors and system interactions] 
+[Placeholder: Comprehensive Gantt chart showing 17-week project timeline] 
  
-Actors: 
-- User (authenticated) 
-- Anonymous User 
-- GitHub (external system) 
-- System Administrator 
+Week 1-2:  ████████████████████████████████████████████████████████████████████████████████████████ Requirements & Design 
+Week 3-8:  ████████████████████████████████████████████████████████████████████████████████████████ Backend Development 
+Week 7-10: ███████████████████████████████████████████████████████████████████████████████████████ Frontend Development 
+Week 11-13: ███████████████████████████████████████████████████████████████████████████████████████ Integration & Testing 
+Week 14-17: ███████████████████████████████████████████████████████████████████████████████████████ Deployment & Documentation 
  
-Use Cases: 
-- Register/Login 
-- Predict Workflow Cost 
-- View Prediction History 
-- Configure Webhooks 
-- Manage ML Models 
-- Monitor System Health
----
+Key Milestones: 
+Week 2: ✓ Requirements Complete 
+Week 8: ✓ Backend Complete   
+Week 10: ✓ Frontend Complete 
+Week 13: ✓ Testing Complete 
+Week 15: ✓ Production Deploy 
+Week 17: ✓ Project Complete 
+  
 
 ## Rules
 

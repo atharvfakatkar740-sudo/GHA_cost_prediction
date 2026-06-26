@@ -158,6 +158,39 @@ Stop with `Ctrl+C` then `docker compose down`. Add `-v` to also delete the datab
 
 ---
 
+## CI/CD — Automated Image Publishing & Releases
+
+Two GitHub Actions (at the repo root) work together so that **only a verified, working version is ever published**:
+
+- **`.github/workflows/build-verify.yml`** — *Build Verification.* Runs on every PR to `main` (and pushes to feature branches). It builds the full stack and smoke-tests it by booting the containers and asserting the backend `/health` endpoint responds. Set this as a **required status check** on `main` to block merges of broken builds.
+- **`.github/workflows/publish-release.yml`** — *Publish & Release.* Builds and publishes the **entire modular stack** to the GitHub Container Registry (`ghcr.io`) and cuts an auto-incremented GitHub Release.
+
+**Publish trigger:** runs automatically whenever a pull request from *any* branch is **merged into `main`**. It first re-runs the build + smoke-test in a `verify` job; the images are pushed and the release is cut **only if that gate passes**.
+
+### What it does
+1. Computes the next semantic version by patch-bumping the latest `vX.Y.Z` git tag (starts at `v0.0.1`).
+2. Builds and pushes three version-pinned images (plus a `latest` tag each):
+   - `ghcr.io/<owner>/gha-cost-predictor-database`
+   - `ghcr.io/<owner>/gha-cost-predictor-backend`
+   - `ghcr.io/<owner>/gha-cost-predictor-frontend`
+3. Creates the matching git tag and publishes a GitHub Release with auto-generated notes and pull instructions.
+
+The **database** is bundled as its own image (`database/Dockerfile`, based on `postgres:16-alpine` with first-boot init scripts in `database/initdb/`), so the published bundle is fully self-contained — no external base images required at deploy time.
+
+No extra secrets are needed: the workflow authenticates with the built-in `GITHUB_TOKEN` (`packages: write` + `contents: write`).
+
+### Run a published release
+```bash
+export IMAGE_TAG=v1.0.0          # any released tag, or "latest"
+export IMAGE_OWNER=atharvfakatkar740-sudo
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+`docker-compose.prod.yml` references the published `ghcr.io` images instead of building locally.
+
+---
+
 ## Kubernetes Deployment
 
 ### Prerequisites
