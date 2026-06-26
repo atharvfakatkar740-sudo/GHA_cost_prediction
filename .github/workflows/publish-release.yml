@@ -23,7 +23,6 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  PROJECT_DIR: gha-cost-predictor
   IMAGE_PREFIX: gha-cost-predictor
 
 jobs:
@@ -40,7 +39,6 @@ jobs:
 
       - name: Build images (no push) & smoke-test the stack
         run: |
-          cd "$PROJECT_DIR"
           echo "Building full stack locally for verification..."
           docker compose build
           echo "Starting stack..."
@@ -115,8 +113,8 @@ jobs:
       - name: Build & push database image
         uses: docker/build-push-action@v6
         with:
-          context: ${{ env.PROJECT_DIR }}/database
-          file: ${{ env.PROJECT_DIR }}/database/Dockerfile
+          context: ./database
+          file: ./database/Dockerfile
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ steps.ns.outputs.owner_lc }}/${{ env.IMAGE_PREFIX }}-database:${{ steps.version.outputs.version }}
@@ -128,8 +126,8 @@ jobs:
       - name: Build & push backend image
         uses: docker/build-push-action@v6
         with:
-          context: ${{ env.PROJECT_DIR }}/backend
-          file: ${{ env.PROJECT_DIR }}/backend/Dockerfile
+          context: ./backend
+          file: ./backend/Dockerfile
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ steps.ns.outputs.owner_lc }}/${{ env.IMAGE_PREFIX }}-backend:${{ steps.version.outputs.version }}
@@ -141,8 +139,8 @@ jobs:
       - name: Build & push frontend image
         uses: docker/build-push-action@v6
         with:
-          context: ${{ env.PROJECT_DIR }}/frontend
-          file: ${{ env.PROJECT_DIR }}/frontend/Dockerfile
+          context: ./frontend
+          file: ./frontend/Dockerfile
           push: true
           build-args: |
             REACT_APP_API_URL=http://localhost:8000
@@ -182,8 +180,8 @@ jobs:
             ```bash
             export IMAGE_TAG=${{ steps.version.outputs.version }}
             export IMAGE_OWNER=${{ steps.ns.outputs.owner_lc }}
-            docker compose -f ${{ env.PROJECT_DIR }}/docker-compose.prod.yml pull
-            docker compose -f ${{ env.PROJECT_DIR }}/docker-compose.prod.yml up -d
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d
             ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -17,9 +17,6 @@ concurrency:
   group: build-verify-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  PROJECT_DIR: gha-cost-predictor
-
 jobs:
   build-and-smoke-test:
     runs-on: ubuntu-latest
@@ -32,14 +29,11 @@ jobs:
 
       # ── Build every image in the stack (database / backend / frontend) ──────
       - name: Build full stack
-        run: |
-          cd "$PROJECT_DIR"
-          docker compose build
+        run: docker compose build
 
       # ── Boot the stack and assert the backend reports healthy ───────────────
       - name: Smoke-test running stack
         run: |
-          cd "$PROJECT_DIR"
           docker compose up -d
           echo "Waiting for backend /health ..."
           ok=false
@@ -59,6 +53,4 @@ jobs:
 
       - name: Tear down
         if: always()
-        run: |
-          cd "$PROJECT_DIR"
-          docker compose down -v
+        run: docker compose down -v
