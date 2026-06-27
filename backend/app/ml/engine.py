@@ -83,13 +83,21 @@ class PredictionEngine:
         """Attempt to load a saved model from disk."""
         if self.model_path and os.path.isfile(self.model_path):
             try:
-                self.model = joblib.load(self.model_path)
-                # Pipeline wraps the real estimator
-                inner = self.model
-                if hasattr(inner, "named_steps"):
-                    inner = list(inner.named_steps.values())[-1]
-                self.model_name = type(inner).__name__
-                logger.info(f"Loaded ML model: {self.model_name} from {self.model_path}")
+                loaded = joblib.load(self.model_path)
+                # Handle custom dict format with 'model' key
+                if isinstance(loaded, dict) and 'model' in loaded:
+                    self.model = loaded['model']
+                    self.model_name = loaded.get('model_type', type(self.model).__name__)
+                    logger.info(f"Loaded ML model from dict format: {self.model_name} from {self.model_path}")
+                else:
+                    # Standard sklearn Pipeline
+                    self.model = loaded
+                    # Pipeline wraps the real estimator
+                    inner = self.model
+                    if hasattr(inner, "named_steps"):
+                        inner = list(inner.named_steps.values())[-1]
+                    self.model_name = type(inner).__name__
+                    logger.info(f"Loaded ML model: {self.model_name} from {self.model_path}")
             except Exception as e:
                 logger.warning(f"Failed to load model from {self.model_path}: {e}")
                 self.model = None
