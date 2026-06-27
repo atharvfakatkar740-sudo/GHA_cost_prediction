@@ -32,7 +32,7 @@ class GitHubService:
         url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}/contents/.github/workflows"
         params = {"ref": branch}
 
-        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(url, headers=self._headers, params=params)
 
         if resp.status_code != 200:
@@ -59,7 +59,7 @@ class GitHubService:
         headers = dict(self._headers)
         headers["Accept"] = "application/vnd.github.raw+json"
 
-        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(url, headers=headers, params=params)
 
         if resp.status_code == 200:
@@ -74,7 +74,7 @@ class GitHubService:
         url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}/issues/{pr_number}/comments"
         payload = {"body": body}
 
-        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(
                 url, headers=self._headers, json=payload
             )
@@ -94,7 +94,7 @@ class GitHubService:
         url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}/issues/comments/{comment_id}"
         payload = {"body": body}
 
-        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.patch(
                 url, headers=self._headers, json=payload
             )
@@ -107,7 +107,7 @@ class GitHubService:
         """Get list of files changed in a PR."""
         url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls/{pr_number}/files"
 
-        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(url, headers=self._headers)
 
         if resp.status_code == 200:
@@ -120,7 +120,7 @@ class GitHubService:
         """Get PR details."""
         url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls/{pr_number}"
 
-        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(url, headers=self._headers)
 
         if resp.status_code == 200:
@@ -134,7 +134,7 @@ class GitHubService:
         url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}/commits/{commit_sha}/comments"
         payload = {"body": body}
 
-        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(
                 url, headers=self._headers, json=payload
             )
@@ -161,7 +161,7 @@ class GitHubService:
         url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls"
         params = {"state": "open", "head": f"{owner}:{branch}", "per_page": 10}
 
-        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(url, headers=self._headers, params=params)
 
         if resp.status_code == 200:
@@ -185,7 +185,7 @@ class GitHubService:
             return {}
         url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}"
         try:
-            async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+            async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.get(url, headers=self._headers)
             if resp.status_code == 200:
                 data = resp.json()
