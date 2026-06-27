@@ -166,6 +166,32 @@ class PredictionEngine:
             logger.error(f"Model prediction failed: {e}, falling back to heuristic")
             return self._predict_heuristic(feature_dict)
 
+    def _encode_os(self, os_label: Optional[str]) -> int:
+        if not os_label:
+            return 0
+        os_label = os_label.lower()
+        if "ubuntu" in os_label:
+            return 0
+        elif "windows" in os_label:
+            return 1
+        elif "macos" in os_label:
+            return 2
+        return 3  # unknown
+
+
+    def _encode_language(self, lang: Optional[str]) -> int:
+        if not lang:
+            return 0
+        lang = lang.lower()
+        mapping = {
+            "python": 0,
+            "javascript": 1,
+            "typescript": 2,
+            "java": 3,
+            "go": 4,
+        }
+        return mapping.get(lang, 5)
+
     def _predict_heuristic(self, f: Dict[str, Any]) -> Dict[str, Any]:
         """
         Heuristic fallback estimator based on workflow structure.
