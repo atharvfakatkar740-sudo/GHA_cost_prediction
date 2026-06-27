@@ -1,0 +1,90 @@
+version: "3.9"
+
+# ── Shared network ────────────────────────────────────────────────────────────
+networks:
+  gha_net:
+    driver: bridge
+
+# ── Persistent volumes ────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+  ml_models:
+
+# ── Services ──────────────────────────────────────────────────────────────────
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: gha_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gha_cost_predictor
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - gha_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d gha_cost_predictor"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend (FastAPI) ────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: gha_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/gha_cost_predictor
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
+      JWT_ALGORITHM: HS256
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 1440
+      JWT_RESET_TOKEN_EXPIRE_MINUTES: 30
+      CORS_ORIGINS: "http://localhost:3000,http://frontend:80"
+      MODEL_PATH: /app/ml_models/model.joblib
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_NAME: GHA Cost Predictor
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
+      HOST: 0.0.0.0
+      PORT: "8000"
+    volumes:
+      - ml_models:/app/ml_models
+    ports:
+      - "8000:8000"
+    networks:
+      - gha_net
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ── Frontend (React → nginx) ─────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000}
+    container_name: gha_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:80"
+    networks:
+      - gha_net

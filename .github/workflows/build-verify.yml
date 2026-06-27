@@ -1,0 +1,56 @@
+name: Build Verification
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Verifies the full modular stack builds and runs before code reaches `main`.
+# Runs on every PR targeting `main` and on direct pushes to any feature branch.
+# Make this a REQUIRED status check on `main` so only a working version can be
+# merged — and therefore only a working version is ever published/released.
+# ─────────────────────────────────────────────────────────────────────────────
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches-ignore: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: build-verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ── Build every image in the stack (database / backend / frontend) ──────
+      - name: Build full stack
+        run: docker compose build
+
+      # ── Boot the stack and assert the backend reports healthy ───────────────
+      - name: Smoke-test running stack
+        run: |
+          docker compose up -d
+          echo "Waiting for backend /health ..."
+          ok=false
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/health >/dev/null 2>&1; then
+              ok=true; break
+            fi
+            sleep 5
+          done
+          docker compose ps
+          if [ "$ok" != "true" ]; then
+            echo "::error::Stack failed health check."
+            docker compose logs --tail=150
+            exit 1
+          fi
+          echo "✅ Stack is healthy."
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
