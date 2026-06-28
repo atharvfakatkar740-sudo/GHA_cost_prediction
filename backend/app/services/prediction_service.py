@@ -256,6 +256,7 @@ class PredictionService:
         pr_number: Optional[int],
         session: AsyncSession,
         post_to_pr: bool = False,
+        user_id: Optional[int] = None,
     ) -> List[PredictionResponse]:
         """Fetch and predict all workflows in a repo."""
         workflow_files = await github_service.get_workflow_files(owner, repo, branch)
@@ -279,7 +280,7 @@ class PredictionService:
                 pr_number=pr_number,
                 workflow_file=wf["name"],
             )
-            pred = await self.predict_from_yaml(request, session, post_to_pr)
+            pred = await self.predict_from_yaml(request, session, post_to_pr, user_id=user_id)
             predictions.append(pred)
 
         return predictions

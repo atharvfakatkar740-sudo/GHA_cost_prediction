@@ -130,6 +130,60 @@ class UserStatsResponse(BaseModel):
     savings_tip: Optional[str] = None
 
 
+# ─── Tracked Repository Schemas ─────────────────────────────────────
+
+class TrackRepoRequest(BaseModel):
+    repo_owner: str = Field(..., description="Repository owner / org")
+    repo_name: str = Field(..., description="Repository name")
+
+
+class TrackedRepoItem(BaseModel):
+    id: int
+    repo_owner: str
+    repo_name: str
+    is_active: bool
+    last_event_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    total_cost_usd: float = 0.0
+    prediction_count: int = 0
+    avg_duration_minutes: float = 0.0
+    last_prediction_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
+
+
+class WebhookSetupInfo(BaseModel):
+    payload_url: str
+    content_type: str = "application/json"
+    secret: str
+    events: List[str] = ["push", "pull_request", "workflow_run"]
+
+
+class TrackedRepoResponse(BaseModel):
+    repository: TrackedRepoItem
+    webhook: WebhookSetupInfo
+
+
+class WorkflowCostItem(BaseModel):
+    workflow_file: str
+    total_cost_usd: float
+    prediction_count: int
+    avg_duration_minutes: float
+
+
+class RepoStatsResponse(BaseModel):
+    repo_owner: str
+    repo_name: str
+    total_predictions: int
+    total_cost_usd: float
+    avg_duration_minutes: float
+    avg_cost_usd: float
+    top_runner: Optional[str] = None
+    cost_over_time: List[DailyCostItem]
+    cost_by_workflow: List[WorkflowCostItem]
+    recent_predictions: List[PredictionHistoryItem]
+
+
 class WebhookPayload(BaseModel):
     action: str
     number: Optional[int] = None

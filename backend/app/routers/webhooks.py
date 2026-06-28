@@ -1,12 +1,14 @@
 import hmac
 import hashlib
 import logging
-from typing import List, Set
+from datetime import datetime, timezone
+from typing import List, Optional, Set, Tuple
 
 from fastapi import APIRouter, Request, HTTPException, Depends
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.database import get_session
+from app.models.database import get_session, TrackedRepository
 from app.models.schemas import WorkflowPredictionRequest
 from app.services.prediction_service import PredictionService
 from app.services.github_service import github_service
@@ -31,6 +33,33 @@ def verify_signature(payload_body: bytes, signature: str, secret: str) -> bool:
         secret.encode(), payload_body, hashlib.sha256
     ).hexdigest()
     return hmac.compare_digest(expected, signature)
+
+
+def _extract_repo_identity(payload: dict) -> Tuple[str, str]:
+    """Pull (owner, name) out of any GitHub event payload."""
+    repo = payload.get("repository", {}) or {}
+    owner = (
+        repo.get("owner", {}).get("login", "")
+        or repo.get("owner", {}).get("name", "")
+    )
+    name = repo.get("name", "")
+    return owner, name
+
+
+async def _resolve_tracked_repo(
+    session: AsyncSession, owner: str, name: str
+) -> Optional[TrackedRepository]:
+    """Find an active tracked repository matching this owner/name."""
+    if not owner or not name:
+        return None
+    result = await session.execute(
+        select(TrackedRepository).where(
+            TrackedRepository.repo_owner == owner,
+            TrackedRepository.repo_name == name,
+            TrackedRepository.is_active == True,  # noqa: E712
+        )
+    )
+    return result.scalar_one_or_none()
 
 
 def _extract_workflow_paths_from_commits(commits: list) -> Set[str]:
@@ -67,24 +96,33 @@ async def github_webhook(
       - **workflow_run**  — Reacts when a workflow run is requested (optional).
       - **ping**          — Responds to GitHub's connectivity check.
     """
-    # Verify signature
     signature = request.headers.get("X-Hub-Signature-256", "")
     body = await request.body()
-
-    if settings.GITHUB_WEBHOOK_SECRET and not verify_signature(
-        body, signature, settings.GITHUB_WEBHOOK_SECRET
-    ):
-        raise HTTPException(status_code=401, detail="Invalid signature")
-
     event = request.headers.get("X-GitHub-Event", "")
     payload = await request.json()
 
+    # Resolve tracked repository to get user_id and per-repo secret
+    owner, name = _extract_repo_identity(payload)
+    tracked_repo = await _resolve_tracked_repo(session, owner, name)
+
+    # Signature verification: use tracked repo secret if available, else global
+    secret = tracked_repo.webhook_secret if tracked_repo else settings.GITHUB_WEBHOOK_SECRET
+    if secret and not verify_signature(body, signature, secret):
+        raise HTTPException(status_code=401, detail="Invalid signature")
+
+    user_id = tracked_repo.user_id if tracked_repo else None
+
+    # Update last_event_at if tracked
+    if tracked_repo:
+        tracked_repo.last_event_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        await session.commit()
+
     if event == "push":
-        return await _handle_push(payload, session)
+        return await _handle_push(payload, session, user_id)
     elif event == "pull_request":
-        return await _handle_pull_request(payload, session)
+        return await _handle_pull_request(payload, session, user_id)
     elif event == "workflow_run":
-        return await _handle_workflow_run(payload, session)
+        return await _handle_workflow_run(payload, session, user_id)
     elif event == "ping":
         return {"status": "pong"}
     else:
@@ -93,7 +131,7 @@ async def github_webhook(
 
 # ─── Push Handler ────────────────────────────────────────────────────
 
-async def _handle_push(payload: dict, session: AsyncSession):
+async def _handle_push(payload: dict, session: AsyncSession, user_id: Optional[int] = None):
     """
     Handle push webhook events.
 
@@ -162,7 +200,7 @@ async def _handle_push(payload: dict, session: AsyncSession):
             commit_sha=head_sha,
             branch=branch,
         )
-        pred = await _service.predict_from_yaml(req, session, post_to_pr=False)
+        pred = await _service.predict_from_yaml(req, session, post_to_pr=False, user_id=user_id)
         predictions.append(pred)
 
     if not predictions:
@@ -220,7 +258,7 @@ async def _handle_push(payload: dict, session: AsyncSession):
 
 # ─── Pull Request Handler ───────────────────────────────────────────
 
-async def _handle_pull_request(payload: dict, session: AsyncSession):
+async def _handle_pull_request(payload: dict, session: AsyncSession, user_id: Optional[int] = None):
     """Handle pull_request webhook events."""
     action = payload.get("action", "")
 
@@ -276,7 +314,7 @@ async def _handle_pull_request(payload: dict, session: AsyncSession):
                     branch=head_branch,
                 )
                 pred = await _service.predict_from_yaml(
-                    req, session, post_to_pr=True
+                    req, session, post_to_pr=True, user_id=user_id
                 )
                 predictions.append(pred)
 
@@ -309,7 +347,7 @@ async def _handle_pull_request(payload: dict, session: AsyncSession):
 
 # ─── Workflow Run Handler ────────────────────────────────────────────
 
-async def _handle_workflow_run(payload: dict, session: AsyncSession):
+async def _handle_workflow_run(payload: dict, session: AsyncSession, user_id: Optional[int] = None):
     """
     Handle workflow_run webhook events.
 
@@ -361,7 +399,7 @@ async def _handle_workflow_run(payload: dict, session: AsyncSession):
         branch=branch,
     )
     pred = await _service.predict_from_yaml(
-        req, session, post_to_pr=(pr_number is not None)
+        req, session, post_to_pr=(pr_number is not None), user_id=user_id
     )
 
     # If no PR, post a commit comment instead

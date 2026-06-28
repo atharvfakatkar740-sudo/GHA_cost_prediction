@@ -14,6 +14,7 @@ import {
   BarChart2,
   ChevronDown,
   Zap,
+  GitBranch,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -24,6 +25,7 @@ const NAV_MAIN = [
 ];
 
 const NAV_ACCOUNT = [
+  { to: "/repositories", label: "Repositories", icon: GitBranch, authOnly: true },
   { to: "/analytics", label: "Analytics", icon: BarChart2, authOnly: true },
   { to: "/profile", label: "Profile", icon: User, authOnly: true },
   { to: "/pricing", label: "Pricing", icon: DollarSign },
@@ -81,11 +83,11 @@ function UserMenu({ user, onLogout }) {
           </div>
           <div className="py-1">
             <Link
-              to="/profile"
+              to="/repositories"
               onClick={() => setOpen(false)}
               className="flex items-center gap-2 px-4 py-2 text-sm text-gh-text hover:bg-gh-surface2 transition-colors"
             >
-              <User size={14} className="text-gh-muted" /> Profile
+              <GitBranch size={14} className="text-gh-muted" /> Repositories
             </Link>
             <Link
               to="/analytics"
@@ -93,6 +95,13 @@ function UserMenu({ user, onLogout }) {
               className="flex items-center gap-2 px-4 py-2 text-sm text-gh-text hover:bg-gh-surface2 transition-colors"
             >
               <BarChart2 size={14} className="text-gh-muted" /> Analytics
+            </Link>
+            <Link
+              to="/profile"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 px-4 py-2 text-sm text-gh-text hover:bg-gh-surface2 transition-colors"
+            >
+              <User size={14} className="text-gh-muted" /> Profile
             </Link>
           </div>
           <div className="border-t border-gh-border py-1">
