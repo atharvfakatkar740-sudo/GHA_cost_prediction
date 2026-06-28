@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import settings
 from app.models.database import init_db
-from app.routers import predictions, webhooks, pricing, auth
+from app.routers import predictions, webhooks, pricing, auth, repositories
 
 logging.basicConfig(
     level=logging.INFO,
@@ -52,6 +52,7 @@ app.include_router(auth.router)
 app.include_router(predictions.router)
 app.include_router(webhooks.router)
 app.include_router(pricing.router)
+app.include_router(repositories.router)
 
 
 @app.get("/")

@@ -14,6 +14,7 @@ import ForgotPasswordPage from "./components/ForgotPasswordPage";
 import ResetPasswordPage from "./components/ResetPasswordPage";
 import ProfilePage from "./pages/ProfilePage";
 import AnalyticsPage from "./pages/AnalyticsPage";
+import RepositoriesPage from "./pages/RepositoriesPage";
 
 function App() {
   return (
@@ -43,6 +44,7 @@ function App() {
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/analytics" element={<AnalyticsPage />} />
+              <Route path="/repositories" element={<RepositoriesPage />} />
             </Routes>
           </Layout>
         </Router>

@@ -77,6 +77,7 @@ class PredictionEngine:
         self.model = None
         self.model_name = "heuristic"
         self.model_path = model_path
+        self.feature_names = MODEL_FEATURE_NAMES  # default
         self._load_model()
 
     def _load_model(self):
@@ -87,8 +88,18 @@ class PredictionEngine:
                 # Handle custom dict format with 'model' key
                 if isinstance(loaded, dict) and 'model' in loaded:
                     self.model = loaded['model']
-                    self.model_name = loaded.get('model_type', type(self.model).__name__)
-                    logger.info(f"Loaded ML model from dict format: {self.model_name} from {self.model_path}")
+                    # Extract feature names from dict if available
+                    if 'feature_names' in loaded:
+                        self.feature_names = loaded['feature_names']
+                    # Get model type from dict or from the actual model object
+                    self.model_name = loaded.get('model_type', None)
+                    if not self.model_name:
+                        # Extract from the actual model object
+                        inner = self.model
+                        if hasattr(inner, "named_steps"):
+                            inner = list(inner.named_steps.values())[-1]
+                        self.model_name = type(inner).__name__
+                    logger.info(f"Loaded ML model from dict format: {self.model_name} with {len(self.feature_names)} features from {self.model_path}")
                 else:
                     # Standard sklearn Pipeline
                     self.model = loaded
@@ -146,17 +157,10 @@ class PredictionEngine:
     def _predict_with_model(self, feature_dict: Dict[str, Any]) -> Dict[str, Any]:
         """Build a single-row DataFrame and call model.predict()."""
         try:
-            # Try new feature set first, fall back to legacy if model was trained on old features
-            for feature_names in (MODEL_FEATURE_NAMES, MODEL_FEATURE_NAMES_LEGACY):
-                try:
-                    row = self._encode_features(feature_dict, feature_names)
-                    df = pd.DataFrame([row], columns=feature_names)
-                    raw_prediction = self.model.predict(df)[0]
-                    break
-                except Exception:
-                    continue
-            else:
-                raise ValueError("Both feature sets failed")
+            # Use the feature names from the loaded model
+            row = self._encode_features(feature_dict, self.feature_names)
+            df = pd.DataFrame([row], columns=self.feature_names)
+            raw_prediction = self.model.predict(df)[0]
 
             # Model may predict in log1p space — back-transform if value looks like log scale
             if raw_prediction < 6.0:

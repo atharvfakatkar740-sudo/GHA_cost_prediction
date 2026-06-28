@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     GITHUB_TOKEN: str = ""
     GITHUB_WEBHOOK_SECRET: str = ""
 
+    # Public base URL where GitHub can reach this server's webhook endpoint.
+    # Override with a public/tunnel URL (e.g. https://abc.ngrok.io) in production.
+    PUBLIC_BASE_URL: str = "http://localhost:8000"
+
     # Database — default to PostgreSQL; falls back to SQLite for quick local dev
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/gha_cost_predictor"
 

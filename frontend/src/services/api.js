@@ -109,6 +109,42 @@ export async function getMyStats(days = 30) {
   return resp.data;
 }
 
+// ─── Repositories ─────────────────────────────────────────────────
+
+export async function trackRepository(repoOwner, repoName) {
+  const resp = await api.post("/api/repositories", {
+    repo_owner: repoOwner,
+    repo_name: repoName,
+  });
+  return resp.data;
+}
+
+export async function listTrackedRepositories() {
+  const resp = await api.get("/api/repositories");
+  return resp.data;
+}
+
+export async function getWebhookInfo(repoId) {
+  const resp = await api.get(`/api/repositories/${repoId}/webhook`);
+  return resp.data;
+}
+
+export async function rotateWebhookSecret(repoId) {
+  const resp = await api.post(`/api/repositories/${repoId}/rotate-secret`);
+  return resp.data;
+}
+
+export async function untrackRepository(repoId) {
+  await api.delete(`/api/repositories/${repoId}`);
+}
+
+export async function getRepoStats(repoId, days = 30) {
+  const resp = await api.get(`/api/repositories/${repoId}/stats`, {
+    params: { days },
+  });
+  return resp.data;
+}
+
 // ─── Health ───────────────────────────────────────────────────────
 
 export async function checkHealth() {

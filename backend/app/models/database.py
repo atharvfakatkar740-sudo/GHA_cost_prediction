@@ -32,6 +32,10 @@ class User(Base):
                         onupdate=lambda: datetime.now(timezone.utc))
 
     predictions = relationship("Prediction", back_populates="user", lazy="selectin")
+    tracked_repositories = relationship(
+        "TrackedRepository", back_populates="user", lazy="selectin",
+        cascade="all, delete-orphan",
+    )
 
 
 # ─── Prediction ─────────────────────────────────────────────────────
@@ -63,6 +67,23 @@ class Prediction(Base):
     github_comment_id = Column(BigInteger, nullable=True)
 
     user = relationship("User", back_populates="predictions")
+
+
+# ─── Tracked Repository ─────────────────────────────────────────────
+
+class TrackedRepository(Base):
+    __tablename__ = "tracked_repositories"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    repo_owner = Column(String(255), nullable=False)
+    repo_name = Column(String(255), nullable=False)
+    webhook_secret = Column(String(64), nullable=False)
+    is_active = Column(Boolean, default=True)
+    last_event_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+
+    user = relationship("User", back_populates="tracked_repositories")
 
 
 # ─── Pricing Cache ──────────────────────────────────────────────────
