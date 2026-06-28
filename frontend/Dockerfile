@@ -10,7 +10,7 @@ RUN npm ci --legacy-peer-deps
 # Copy source and build
 COPY . .
 # REACT_APP_API_URL is injected at build-time via --build-arg / docker-compose build args
-ARG REACT_APP_API_URL=https://ghacostmonitor.online/api
+ARG REACT_APP_API_URL=https://ghacostmonitor.online
 ENV REACT_APP_API_URL=$REACT_APP_API_URL
 RUN npm run build
 
