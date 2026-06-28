@@ -55,6 +55,7 @@ async def predict_repo_workflows(
     request: RepoPredictionRequest,
     post_to_pr: bool = Query(False, description="Post results as PR comments"),
     session: AsyncSession = Depends(get_session),
+    user: Optional[User] = Depends(get_optional_user),
 ):
     """
     Fetch all workflow files from a GitHub repo and predict costs for each.
@@ -67,6 +68,7 @@ async def predict_repo_workflows(
             pr_number=request.pr_number,
             session=session,
             post_to_pr=post_to_pr,
+            user_id=user.id if user else None,
         )
         if not results:
             raise HTTPException(
@@ -216,7 +218,7 @@ async def get_my_stats(
     session: AsyncSession = Depends(get_session),
 ):
     """Return aggregated analytics for the authenticated user's predictions."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
 
     result = await session.execute(
         select(Prediction).where(

@@ -174,7 +174,7 @@ async def get_repo_stats(
 ):
     """Return detailed analytics for a single tracked repository."""
     repo = await _get_owned_repo(session, user.id, repo_id)
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
 
     result = await session.execute(
         select(Prediction).where(
