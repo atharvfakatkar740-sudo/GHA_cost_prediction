@@ -103,7 +103,7 @@ async def send_password_reset_email(email: str, reset_token: str) -> bool:
         logger.warning("SMTP not configured — cannot send reset email")
         return False
 
-    reset_link = f"http://localhost:3000/reset-password?token={reset_token}"
+    reset_link = f"https://ghacostmonitor.online/reset-password?token={reset_token}"
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = "Reset Your Password — GHA Cost Predictor"

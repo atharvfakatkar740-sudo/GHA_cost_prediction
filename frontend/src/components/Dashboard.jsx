@@ -288,7 +288,7 @@ function LandingDashboard() {
         </div>
         <div className="glow-card-green text-center">
           <div className="text-2xl font-bold text-gh-green">
-            {modelInfo?.feature_count ?? "18"}
+            {modelInfo?.feature_count ?? "21"}
           </div>
           <div className="stat-label mt-1">Features Used</div>
         </div>
